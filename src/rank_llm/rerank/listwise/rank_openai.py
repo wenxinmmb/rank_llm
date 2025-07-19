@@ -25,9 +25,7 @@ class SafeOpenaiBackend(ListwiseRankLLM):
         keys=None,
         key_start_id=None,
         proxy=None,
-        api_type: Optional[str] = None,
         api_base: Optional[str] = None,
-        api_version: Optional[str] = None,
         openrouter_config: Optional[Dict[str, str]] = None,
     ) -> None:
         """
@@ -174,7 +172,7 @@ class SafeOpenaiBackend(ListwiseRankLLM):
         reduce_length=False,
         **kwargs,
     ) -> Union[str, Dict[str, Any]]:
-        while True:
+        for i in range(3): # Retry up to 3 times
             try:
                 if completion_mode == self.CompletionMode.CHAT:
                     completion_kwargs = {**kwargs, "timeout": 30}
@@ -187,6 +185,16 @@ class SafeOpenaiBackend(ListwiseRankLLM):
                     raise ValueError(
                         "Unsupported completion mode: %V" % completion_mode
                     )
+                if return_text:
+                    completion = (
+                        completion.choices[0].message.content
+                        if completion_mode == self.CompletionMode.CHAT
+                        else completion.choices[0].text
+                    )
+                    # if completion has 0 length, retry request
+                    if len(completion) == 0:
+                        print("Empty completion, retrying...")
+                        raise Exception("Empty completion")
                 break
             except Exception as e:
                 print("Error in completion call")
@@ -197,39 +205,7 @@ class SafeOpenaiBackend(ListwiseRankLLM):
                 if "The response was filtered" in str(e):
                     print("The response was filtered")
                     return "ERROR::The response was filtered"
-                    
-                # Cycle to next API key
-                self._cur_key_id = (self._cur_key_id + 1) % len(self._keys)
-
-                # Update client for OpenAI/OpenRouter
-                client_kwargs = {
-                    "api_key": self._keys[self._cur_key_id]
-                }
-                if hasattr(self.client, 'base_url') and self.client.base_url:
-                    client_kwargs["base_url"] = str(self.client.base_url)
-                    
-                    # Re-add OpenRouter headers if needed
-                    if self.openrouter_config and "openrouter.ai" in str(self.client.base_url):
-                        headers = {}
-                        if "site_url" in self.openrouter_config:
-                            headers["HTTP-Referer"] = self.openrouter_config["site_url"]
-                        if "site_name" in self.openrouter_config:
-                            headers["X-Title"] = self.openrouter_config["site_name"]
-                            
-                        if headers:
-                            client_kwargs["default_headers"] = headers
-                            
-                if hasattr(self.client, '_client') and hasattr(self.client._client, '_proxies'):
-                    client_kwargs["http_client"] = self.client._client
-                self.client = OpenAI(**client_kwargs)
-                    
                 time.sleep(0.1)
-        if return_text:
-            completion = (
-                completion.choices[0].message.content
-                if completion_mode == self.CompletionMode.CHAT
-                else completion.choices[0].text
-            )
         return completion
 
     def run_llm(

@@ -53,7 +53,7 @@ class RankLLM(ABC):
                 raise TypeError(
                     f"Expected str or PathLike, got {type(prompt_template_path)}"
                 )
-
+            print(f"Using prompt template: {prompt_template_path}")
             with open(prompt_template_path, "r") as file:
                 data = yaml.safe_load(file)
 
