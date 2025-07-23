@@ -150,7 +150,7 @@ class SafeOpenaiBackend(ListwiseRankLLM):
             "populate_invocations_history", False
         )
         results = []
-        for request in tqdm(requests):
+        for request in (tqdm(requests) if len(requests) > 1 else requests):
             result = self.sliding_windows(
                 request,
                 rank_start=max(rank_start, 0),
