@@ -108,9 +108,14 @@ class BaseInferenceHandler(ABC):
         elif "body" in doc:
             content = doc["body"]
         else:
-            content = doc["passage"]
-        if "title" in doc and doc["title"]:
+            content = doc.get("passage", "")
+            # content = doc["passage"]
+
+        if "title" in doc and doc["title"] and (len(content) > 0) :
             content = "Title: " + doc["title"] + " " + "Content: " + content
+        elif "title" in doc and doc["title"]:
+            content = "Title: " + doc["title"]
+
         content = content.strip()
         content = fix_text(content)
         # For Japanese should cut by character: content = content[:int(max_length)]
